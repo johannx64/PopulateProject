@@ -1,0 +1,40 @@
+{
+  "id": "b169fd63-73fc-48d7-bdb7-4b12a798a261",
+  "name": "PoliceUniform",
+  "title": "Police Uniform",
+  "desc": "",
+  "ns": "default",
+  "type": "SkeletalMesh",
+  "category": 3,
+  "sub_category": 6,
+  "price": 0,
+  "icon_url": "",
+  "derivable": false,
+  "derived_from": "",
+  "status": "",
+  "created_by": "",
+  "items": [
+    {
+      "item_id": "PoliceUniform",
+      "name": "Police Uniform",
+      "desc": "",
+      "icon_url": "",
+      "path": "",
+      "price": 0,
+      "type": "SkeletalMesh",
+      "category": 3,
+      "sub_category": 6,
+      "status": "",
+      "metadata": {},
+      "derived_from_asset_id": "",
+      "derived_from_item_id": ""
+    }
+  ],
+  "metadata": {
+    "plugin_folder": "PoliceUniform",
+    "unreal_version": "5.1.0",
+    "asset_path": "",
+    "asset_type": "SkeletalMesh",
+    "asset_version": "1.0.0"
+  }
+}
