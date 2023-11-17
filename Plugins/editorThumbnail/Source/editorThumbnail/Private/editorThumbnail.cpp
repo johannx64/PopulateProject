@@ -31,9 +31,18 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
 
-#include "UObject/Package.h"
-
 #include "Async/Async.h"
+
+#include "ThumbnailHelpers.h"
+#include "SceneView.h"
+#include "ThumbnailRendering/SceneThumbnailInfo.h"
+#include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
+
+#include "SceneInterface.h"
+#include "PreviewScene.h"
+#include "Editor/UnrealEdEngine.h"  // Include the UnrealEdEngine header
+#include "UnrealEdGlobals.h"
+//#include "ThumbnailRendering/ThumbnailManager.h"
 
 static const FName editorThumbnailTabName("editorThumbnail");
 
@@ -67,96 +76,44 @@ void FeditorThumbnailModule::StartupModule()
 
 }
 
-void ModifyFloorMat() {
-  // Paths
-  FString EngineDir = FPaths::EngineDir();
-  FString EngineMaterialsDir = EngineDir / "EditorMaterials/Thumbnails";
-  
-  FString ProjectDir = FPaths::ProjectDir();
-  FString ContentDir = ProjectDir / "Content";
-  
-  FString HelixDir = ContentDir / "HELIX";
-  FString OldDir = ContentDir / "Old";
 
-  // Source asset paths
-  FString FloorSource = EngineMaterialsDir / "FloorPlaneMaterial.FloorPlaneMaterial";
-  FString SkySource = EngineMaterialsDir / "SkySphereMaterial.SkySphereMaterial";
+void ModifyFloorMat(){
+    // Create an instance of FThumbnailPreviewScene
+    
+    // Add an infinite plane with a custom material
+    const float FloorPlaneScale = 10000.f;
+    const FTransform FloorPlaneTransform(FRotator(-90.f, 0, 0), FVector::ZeroVector, FVector(FloorPlaneScale));
+    UStaticMeshComponent* FloorPlaneComponent = NewObject<UStaticMeshComponent>();
 
-  // Old asset paths  
-  FString OldFloor = OldDir / "FloorPlaneMaterial.FloorPlaneMaterial";
-  FString OldSky = OldDir / "SkySphereMaterial.SkySphereMaterial";
+    FloorPlaneComponent->SetStaticMesh(GUnrealEd->GetThumbnailManager()->EditorPlane);
 
-  // Create Old folder
-  if (!FPaths::DirectoryExists(OldDir))
-  {
-    FPlatformFileManager::Get().GetPlatformFile().CreateDirectory(*OldDir);
-    UPackage* Pkg = CreatePackage(*OldDir);
-    if (Pkg) 
-    {
-      Pkg->FullyLoad();
-      Pkg->MarkPackageDirty();
+    // Load the custom material
+    FString MaterialPath = TEXT("/Game/HELIX/Engine/Thumbnails/FloorPlaneMaterial.FloorPlaneMaterial");
+    UMaterial* CustomFloorMaterial = LoadObject<UMaterial>(nullptr, *MaterialPath);
+
+    if (CustomFloorMaterial)
+    {        
+        FloorPlaneComponent->SetMaterial(0, CustomFloorMaterial);
+        FPreviewScene Preview;
+
+        Preview.AddComponent(FloorPlaneComponent, FloorPlaneTransform);
+
+        // Debug information
+        UE_LOG(LogTemp, Warning, TEXT("Custom material loaded successfully for the floor.2"));
     }
-  }
+    else
+    {
+        // Handle the case where the material couldn't be loaded
+        FString ErrorMessage = FString::Printf(TEXT("Failed to load custom material for the floor. Path: %s"), *MaterialPath);
+        UE_LOG(LogTemp, Error, TEXT("%s"), *ErrorMessage);
+    }
 
-  // Copy source assets to Old
-  TArray<uint8> FloorData, SkyData;
-  FFileHelper::LoadFileToArray(FloorData, *FloorSource);
-  FFileHelper::LoadFileToArray(SkyData, *SkySource);
-  
-  // Create package for Old folder
-  UPackage* OldPackage = CreatePackage(*OldDir);
-
-  // Create dummy object 
-  UObject* OldObject = NewObject<UObject>(OldPackage, "TempAsset");
-
-  FSavePackageArgs SaveArgs;
-  SaveArgs.TopLevelFlags = RF_Standalone;
-
-  // Save object
-  UPackage::SavePackage(OldPackage, OldObject, SaveArgs);
-
-  // Delete source assets
-  IFileManager::Get().Delete(*FloorSource); 
-  IFileManager::Get().Delete(*SkySource);
-
-  // Assets to copy
-  FString FloorCopy = HelixDir / "Engine/Thumbnails/FloorPlaneMaterial.uasset";
-  FString SkyCopy = HelixDir / "Engine/Thumbnails/SkySphereMaterial.uasset";
-
-  // Dest paths 
-  FString EngineFloorDest = EngineMaterialsDir / "FloorPlaneMaterial.FloorPlaneMaterial";
-  FString EngineSkyDest = EngineMaterialsDir / "SkySphereMaterial.SkySphereMaterial";  
-
-  // Copy to Engine
-  TArray<uint8> FloorCopyData, SkyCopyData;
-
-  FFileHelper::LoadFileToArray(FloorCopyData, *FloorCopy);
-  FFileHelper::LoadFileToArray(SkyCopyData, *SkyCopy);
-  
-  // Create package for Engine folder
-  UPackage* EnginePackage = CreatePackage(*EngineDir);
-
-  // Create dummy object
-  UObject* EngineObject = NewObject<UObject>(EnginePackage, "TempAsset");
-
-  FSavePackageArgs SaveArgs;
-  SaveArgs.TopLevelFlags = RF_Standalone;
-
-  // Save object  
-  UPackage::SavePackage(EnginePackage, EngineObject, SaveArgs);
-
-  // Log results
-  UE_LOG(LogTemp, Display, TEXT("Copied materials to Old folder"));
-  UE_LOG(LogTemp, Display, TEXT("Pasted materials to Engine folder"));
-
-
-    /*
-    //Load sky material 
+   //Load sky material 
     //TObjectPtr<UMaterial> SkyMat = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Thumbnails/SkySphereMaterial.SkySphereMaterial"));
 
     // Load floor material
-    TObjectPtr<UMaterial> FloorMat = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Thumbnails/FloorPlaneMaterial.FloorPlaneMaterial"));
-
+   // TObjectPtr<UMaterial> FloorMat = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Thumbnails/FloorPlaneMaterial.FloorPlaneMaterial"));
+    /*
     if (FloorMat)
     {
         // Get editor only data
@@ -178,6 +135,23 @@ void ModifyFloorMat() {
 
 
     }*/
+}
+
+FThumbnailPreviewScene::FThumbnailPreviewScene()
+    : FPreviewScene(ConstructionValues()
+        .SetLightRotation(FRotator(304.736, 39.84, 0))
+        .SetSkyBrightness(0.1f)
+        .SetCreatePhysicsScene(false)
+        .SetTransactional(false))
+{
+    // A background sky sphere
+    UStaticMeshComponent* BackgroundComponent = NewObject<UStaticMeshComponent>();
+    BackgroundComponent->SetStaticMesh(GUnrealEd->GetThumbnailManager()->EditorSkySphere);
+    const float SkySphereScale = 2000.0f;
+    const FTransform BackgroundTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(SkySphereScale));
+    FPreviewScene::AddComponent(BackgroundComponent, BackgroundTransform);
+    // Debug information
+    UE_LOG(LogTemp, Warning, TEXT("SISAS"));
 }
 
 void RestoreFloorMat() {
